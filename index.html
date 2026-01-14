@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ONF Veille">
-    <meta name="theme-color" content="#1a5f2a">
+    <meta name="theme-color" content="#093f3f">
     <meta name="description" content="Application de veille digitale environnementale ONF Corse">
     
     <title>ONF Veille Corse</title>
@@ -28,9 +28,9 @@
     
     <style>
         :root {
-            --primary: #1a5f2a;
-            --primary-dark: #0d3d18;
-            --primary-light: #2E7D32;
+            --primary: #093f3f;
+            --primary-dark: #062929;
+            --primary-light: #0d5252;
             --accent: #ff9800;
             --danger: #c62828;
             --info: #1976d2;
@@ -259,7 +259,7 @@
         }
         
         .map-header {
-            background: var(--primary);
+            background: #093f3f;
             color: white;
             padding: 12px 15px;
             font-weight: 600;
@@ -533,7 +533,7 @@
         
         .nav-item.active {
             color: var(--primary);
-            background: rgba(26, 95, 42, 0.1);
+            background: rgba(9, 63, 63, 0.1);
         }
         
         .nav-icon {
@@ -557,7 +557,7 @@
             border: none;
             border-radius: 50%;
             font-size: 24px;
-            box-shadow: 0 4px 15px rgba(26, 95, 42, 0.4);
+            box-shadow: 0 4px 15px rgba(9, 63, 63, 0.4);
             cursor: pointer;
             z-index: 999;
             display: flex;
@@ -784,7 +784,7 @@
     <!-- Header -->
     <header class="header">
         <div class="header-content">
-            <h1>🌲 ONF Veille Corse</h1>
+            <h1>ONF Veille Corse</h1>
             <button class="sync-btn" onclick="syncData()" id="syncBtn">🔄</button>
         </div>
     </header>
@@ -1398,8 +1398,8 @@
                         datasets: [{
                             label: 'Alertes',
                             data: [12, 25, 18, 15, 8, 5, 10],
-                            borderColor: '#1a5f2a',
-                            backgroundColor: 'rgba(26, 95, 42, 0.1)',
+                            borderColor: '#093f3f',
+                            backgroundColor: 'rgba(9, 63, 63, 0.1)',
                             fill: true,
                             tension: 0.4
                         }]
