@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ONF Veille">
+    <meta name="theme-color" content="#1a5f2a">
+    <meta name="description" content="Application de veille digitale environnementale ONF Corse">
+    
+    <title>ONF Veille Corse</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- iOS Icons -->
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        :root {
+            --primary: #1a5f2a;
+            --primary-dark: #0d3d18;
+            --primary-light: #2E7D32;
+            --accent: #ff9800;
+            --danger: #c62828;
+            --info: #1976d2;
+            --success: #4CAF50;
+            --bg: #f5f7fa;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding-top: var(--safe-top);
+            padding-bottom: calc(70px + var(--safe-bottom));
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 15px 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding-top: calc(15px + var(--safe-top));
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .header-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .sync-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        
+        .sync-btn.syncing {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-top: calc(70px + var(--safe-top));
+            padding: 15px;
+            padding-bottom: 20px;
+        }
+        
+        /* Views */
+        .view {
+            display: none;
+        }
+        
+        .view.active {
+            display: block;
+        }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .stat-card.highlight {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            grid-column: span 2;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+        
+        .stat-card.highlight .stat-label {
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .stat-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        /* Section Title */
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 20px 0 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* Alert List */
+        .alert-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .alert-item {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-left: 4px solid var(--primary);
+        }
+        
+        .alert-item.priority-high {
+            border-left-color: var(--danger);
+        }
+        
+        .alert-item.priority-medium {
+            border-left-color: var(--accent);
+        }
+        
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .alert-type {
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        .alert-badge {
+            padding: 3px 8px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .badge-new { background: #e8f5e9; color: #2E7D32; }
+        .badge-progress { background: #fff3e0; color: #e65100; }
+        .badge-done { background: #e3f2fd; color: #1565c0; }
+        
+        .alert-info {
+            font-size: 13px;
+            color: var(--text-light);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .alert-info span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        /* Map Container */
+        .map-container {
+            background: var(--card);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+        }
+        
+        .map-header {
+            background: var(--primary);
+            color: white;
+            padding: 12px 15px;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        #map {
+            height: 350px;
+            width: 100%;
+        }
+        
+        .map-legend {
+            padding: 12px 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        /* Charts */
+        .chart-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+        }
+        
+        .chart-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+        
+        .chart-wrapper {
+            height: 200px;
+            position: relative;
+        }
+        
+        /* Form */
+        .form-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 16px;
+            background: var(--bg);
+            color: var(--text);
+            transition: border-color 0.2s;
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: var(--bg);
+            color: var(--text);
+            border: 2px solid var(--border);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #c62828 0%, #ef5350 100%);
+            color: white;
+        }
+        
+        /* Camera Button */
+        .camera-btn {
+            background: var(--bg);
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .camera-btn:active {
+            background: var(--border);
+        }
+        
+        .camera-btn .icon {
+            font-size: 40px;
+            margin-bottom: 8px;
+        }
+        
+        .camera-btn .text {
+            font-size: 13px;
+            color: var(--text-light);
+        }
+        
+        .preview-image {
+            width: 100%;
+            border-radius: 12px;
+            margin-top: 10px;
+        }
+        
+        /* Zones List */
+        .zone-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .zone-item {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        
+        .zone-item:active {
+            transform: scale(0.98);
+        }
+        
+        .zone-info h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .zone-info p {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+        
+        .zone-count {
+            background: var(--primary);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        /* Filter Pills */
+        .filter-pills {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .filter-pill {
+            background: var(--card);
+            border: 2px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .filter-pill.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--card);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            padding-bottom: calc(10px + var(--safe-bottom));
+            box-shadow: 0 -2px 20px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-light);
+        }
+        
+        .nav-item.active {
+            color: var(--primary);
+            background: rgba(26, 95, 42, 0.1);
+        }
+        
+        .nav-icon {
+            font-size: 22px;
+        }
+        
+        .nav-label {
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        /* FAB */
+        .fab {
+            position: fixed;
+            bottom: calc(90px + var(--safe-bottom));
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            box-shadow: 0 4px 15px rgba(26, 95, 42, 0.4);
+            cursor: pointer;
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+        
+        .fab:active {
+            transform: scale(0.9);
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: var(--card);
+            border-radius: 24px 24px 0 0;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: calc(20px + var(--safe-bottom));
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        
+        .modal-handle {
+            width: 40px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            margin: 0 auto 20px;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: calc(80px + var(--safe-top));
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: var(--text);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 3000;
+            opacity: 0;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--accent); }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+        }
+        
+        .empty-state .icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        .empty-state h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        
+        /* Rapport Section */
+        .rapport-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .rapport-option {
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .rapport-option:active {
+            border-color: var(--primary);
+            background: rgba(26, 95, 42, 0.05);
+        }
+        
+        .rapport-option .icon {
+            font-size: 30px;
+        }
+        
+        .rapport-option .info h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .rapport-option .info p {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+        
+        /* Settings */
+        .settings-group {
+            background: var(--card);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        .settings-item {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .settings-item:last-child {
+            border-bottom: none;
+        }
+        
+        .settings-item .label {
+            font-size: 15px;
+            font-weight: 500;
+        }
+        
+        .settings-item .value {
+            font-size: 14px;
+            color: var(--text-light);
+        }
+        
+        /* Toggle */
+        .toggle {
+            width: 50px;
+            height: 28px;
+            background: var(--border);
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .toggle.active {
+            background: var(--primary);
+        }
+        
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .toggle.active::after {
+            transform: translateX(22px);
+        }
+        
+        /* Skeleton Loading */
+        .skeleton {
+            background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 8px;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1>🌲 ONF Veille Corse</h1>
+            <button class="sync-btn" onclick="syncData()" id="syncBtn">🔄</button>
+        </div>
+    </header>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard View -->
+        <div id="view-dashboard" class="view active">
+            <div class="stats-grid">
+                <div class="stat-card highlight">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-value" id="stat-total">81</div>
+                    <div class="stat-label">Alertes Totales</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🏘️</div>
+                    <div class="stat-value" id="stat-communes">15</div>
+                    <div class="stat-label">Communes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⚠️</div>
+                    <div class="stat-value" id="stat-critical">12</div>
+                    <div class="stat-label">Critiques</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-value" id="stat-resolved">45</div>
+                    <div class="stat-label">Résolues</div>
+                </div>
+            </div>
+            
+            <h2 class="section-title">🚨 Dernières alertes</h2>
+            <div class="alert-list" id="alert-list">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+        
+        <!-- Map View -->
+        <div id="view-map" class="view">
+            <div class="map-container">
+                <div class="map-header">
+                    <span>🗺️ Carte Interactive</span>
+                    <span style="font-size: 12px; opacity: 0.8;">5 zones • 43 000 ha</span>
+                </div>
+                <div id="map"></div>
+                <div class="map-legend">
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #c62828;"></div>
+                        <span>Critique</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #ff9800;"></div>
+                        <span>Élevée</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #2196f3;"></div>
+                        <span>Modérée</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #4CAF50;"></div>
+                        <span>Faible</span>
+                    </div>
+                </div>
+            </div>
+            
+            <h2 class="section-title">🏔️ Zones Pilotes</h2>
+            <div class="zone-list">
+                <div class="zone-item" onclick="zoomToZone('bavella')">
+                    <div class="zone-info">
+                        <h3>Bavella</h3>
+                        <p>Aiguilles de Bavella</p>
+                    </div>
+                    <div class="zone-count" style="background: #c62828;">15</div>
+                </div>
+                <div class="zone-item" onclick="zoomToZone('scandola')">
+                    <div class="zone-info">
+                        <h3>Scandola</h3>
+                        <p>Réserve naturelle</p>
+                    </div>
+                    <div class="zone-count" style="background: #ff9800;">8</div>
+                </div>
+                <div class="zone-item" onclick="zoomToZone('coscione')">
+                    <div class="zone-info">
+                        <h3>Coscione</h3>
+                        <p>Plateau du Coscione</p>
+                    </div>
+                    <div class="zone-count" style="background: #2196f3;">12</div>
+                </div>
+                <div class="zone-item" onclick="zoomToZone('piana')">
+                    <div class="zone-info">
+                        <h3>Calanques de Piana</h3>
+                        <p>Site UNESCO</p>
+                    </div>
+                    <div class="zone-count" style="background: #4CAF50;">6</div>
+                </div>
+                <div class="zone-item" onclick="zoomToZone('agriates')">
+                    <div class="zone-info">
+                        <h3>Désert des Agriates</h3>
+                        <p>Maquis littoral</p>
+                    </div>
+                    <div class="zone-count" style="background: #9c27b0;">10</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Stats View -->
+        <div id="view-stats" class="view">
+            <div class="chart-card">
+                <div class="chart-title">📊 Infractions par Type</div>
+                <div class="chart-wrapper">
+                    <canvas id="chartTypes"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card">
+                <div class="chart-title">📍 Infractions par Zone</div>
+                <div class="chart-wrapper">
+                    <canvas id="chartZones"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card">
+                <div class="chart-title">📈 Évolution Mensuelle</div>
+                <div class="chart-wrapper">
+                    <canvas id="chartMonthly"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-card">
+                <div class="chart-title">📱 Répartition par Plateforme</div>
+                <div class="chart-wrapper">
+                    <canvas id="chartPlatforms"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Data View -->
+        <div id="view-data" class="view">
+            <div class="filter-pills">
+                <div class="filter-pill active" data-filter="all">Toutes</div>
+                <div class="filter-pill" data-filter="bivouac">Bivouac</div>
+                <div class="filter-pill" data-filter="circulation">Circulation</div>
+                <div class="filter-pill" data-filter="feu">Feu</div>
+                <div class="filter-pill" data-filter="chasse">Chasse</div>
+            </div>
+            
+            <div class="form-group">
+                <select class="form-select" id="filterCommune" onchange="filterData()">
+                    <option value="">Toutes les communes</option>
+                </select>
+            </div>
+            
+            <div class="alert-list" id="data-list">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+        
+        <!-- Settings View -->
+        <div id="view-settings" class="view">
+            <h2 class="section-title">⚙️ Paramètres</h2>
+            
+            <div class="settings-group">
+                <div class="settings-item">
+                    <span class="label">Notifications</span>
+                    <div class="toggle active" onclick="this.classList.toggle('active')"></div>
+                </div>
+                <div class="settings-item">
+                    <span class="label">Mode sombre</span>
+                    <div class="toggle" onclick="this.classList.toggle('active')"></div>
+                </div>
+                <div class="settings-item">
+                    <span class="label">Synchronisation auto</span>
+                    <div class="toggle active" onclick="this.classList.toggle('active')"></div>
+                </div>
+            </div>
+            
+            <h2 class="section-title">📊 Rapports</h2>
+            <div class="rapport-options">
+                <div class="rapport-option" onclick="generateReport('daily')">
+                    <div class="icon">📅</div>
+                    <div class="info">
+                        <h4>Rapport Journalier</h4>
+                        <p>Synthèse des dernières 24h</p>
+                    </div>
+                </div>
+                <div class="rapport-option" onclick="generateReport('weekly')">
+                    <div class="icon">📆</div>
+                    <div class="info">
+                        <h4>Rapport Hebdomadaire</h4>
+                        <p>Analyse de la semaine</p>
+                    </div>
+                </div>
+                <div class="rapport-option" onclick="generateReport('monthly')">
+                    <div class="icon">🗓️</div>
+                    <div class="info">
+                        <h4>Rapport Mensuel</h4>
+                        <p>Bilan complet du mois</p>
+                    </div>
+                </div>
+            </div>
+            
+            <h2 class="section-title">ℹ️ À propos</h2>
+            <div class="settings-group">
+                <div class="settings-item">
+                    <span class="label">Version</span>
+                    <span class="value">1.0.0</span>
+                </div>
+                <div class="settings-item">
+                    <span class="label">Dernière sync</span>
+                    <span class="value" id="lastSync">Jamais</span>
+                </div>
+                <div class="settings-item">
+                    <span class="label">Données locales</span>
+                    <span class="value" id="localDataCount">0 alertes</span>
+                </div>
+            </div>
+            
+            <button class="btn btn-secondary" style="margin-top: 15px;" onclick="clearLocalData()">
+                🗑️ Effacer les données locales
+            </button>
+        </div>
+    </main>
+    
+    <!-- FAB Button -->
+    <button class="fab" onclick="openNewAlertModal()">➕</button>
+    
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" data-view="dashboard">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">Accueil</span>
+        </div>
+        <div class="nav-item" data-view="map">
+            <span class="nav-icon">🗺️</span>
+            <span class="nav-label">Carte</span>
+        </div>
+        <div class="nav-item" data-view="stats">
+            <span class="nav-icon">📊</span>
+            <span class="nav-label">Stats</span>
+        </div>
+        <div class="nav-item" data-view="data">
+            <span class="nav-icon">📋</span>
+            <span class="nav-label">Données</span>
+        </div>
+        <div class="nav-item" data-view="settings">
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-label">Plus</span>
+        </div>
+    </nav>
+    
+    <!-- New Alert Modal -->
+    <div class="modal-overlay" id="newAlertModal">
+        <div class="modal">
+            <div class="modal-handle"></div>
+            <h2 class="modal-title">➕ Nouvelle Alerte</h2>
+            
+            <form id="newAlertForm">
+                <div class="form-group">
+                    <label class="form-label">Type d'infraction *</label>
+                    <select class="form-select" id="newType" required>
+                        <option value="">Sélectionner...</option>
+                        <option value="Bivouac">Bivouac interdit</option>
+                        <option value="Circulation motorisée">Circulation motorisée</option>
+                        <option value="Feu interdit">Feu interdit</option>
+                        <option value="Chasse illégale">Chasse illégale</option>
+                        <option value="Dépôt sauvage">Dépôt sauvage</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Plateforme *</label>
+                        <select class="form-select" id="newPlatform" required>
+                            <option value="">Sélectionner...</option>
+                            <option value="Instagram">Instagram</option>
+                            <option value="Facebook">Facebook</option>
+                            <option value="YouTube">YouTube</option>
+                            <option value="TikTok">TikTok</option>
+                            <option value="Autre">Autre</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Commune *</label>
+                        <select class="form-select" id="newCommune" required>
+                            <option value="">Sélectionner...</option>
+                            <option value="Zonza">Zonza</option>
+                            <option value="Quenza">Quenza</option>
+                            <option value="Vizzavona">Vizzavona</option>
+                            <option value="Corte">Corte</option>
+                            <option value="Piana">Piana</option>
+                            <option value="Porto-Vecchio">Porto-Vecchio</option>
+                            <option value="Bonifacio">Bonifacio</option>
+                            <option value="Calvi">Calvi</option>
+                            <option value="Bastia">Bastia</option>
+                            <option value="Ajaccio">Ajaccio</option>
+                            <option value="Santo-Pietro-di-Tenda">Santo-Pietro-di-Tenda</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Lien du contenu</label>
+                    <input type="url" class="form-input" id="newLink" placeholder="https://...">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Auteur / Compte</label>
+                    <input type="text" class="form-input" id="newAuthor" placeholder="@username">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Capture d'écran</label>
+                    <div class="camera-btn" onclick="document.getElementById('captureInput').click()">
+                        <div class="icon">📷</div>
+                        <div class="text">Appuyer pour prendre une photo</div>
+                    </div>
+                    <input type="file" id="captureInput" accept="image/*" capture="environment" style="display: none;" onchange="previewCapture(this)">
+                    <img id="capturePreview" class="preview-image" style="display: none;">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Notes / Commentaires</label>
+                    <textarea class="form-textarea" id="newNotes" placeholder="Informations complémentaires..."></textarea>
+                </div>
+                
+                <div class="form-row" style="margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+                    <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        // ==========================================
+        // DATA STORAGE
+        // ==========================================
+        const STORAGE_KEY = 'onf_veille_data';
+        
+        // Sample data
+        let alertsData = [
+            { id: 1, type: 'Circulation motorisée', platform: 'Instagram', commune: 'Santo-Pietro-di-Tenda', author: '@vincentfrsk', date: '2025-02-13', status: 'Envoyé', priority: 'high' },
+            { id: 2, type: 'Circulation motorisée', platform: 'YouTube', commune: 'Vizzavona', author: 'OG Schaefchen', date: '2024-10-20', status: 'Envoyé', priority: 'medium' },
+            { id: 3, type: 'Circulation motorisée', platform: 'YouTube', commune: 'Vizzavona', author: 'MX TEST', date: '2024-11-12', status: 'Envoyé', priority: 'medium' },
+            { id: 4, type: 'Bivouac', platform: 'YouTube', commune: 'Quenza', author: 'Francesco Furlani', date: '2024-08-10', status: 'Envoyé', priority: 'low' },
+            { id: 5, type: 'Circulation motorisée', platform: 'YouTube', commune: 'Bonifacio', author: 'Lewie and the Rover', date: '2024-07-11', status: 'En cours', priority: 'high' },
+            { id: 6, type: 'Circulation motorisée', platform: 'TikTok', commune: 'Porto-Vecchio', author: '@bernardinlucke', date: '2025-05-31', status: 'En cours', priority: 'medium' },
+            { id: 7, type: 'Circulation motorisée', platform: 'Facebook', commune: 'Zonza', author: 'LRC-Motors', date: '2024-02-22', status: 'Envoyé', priority: 'low' },
+            { id: 8, type: 'Circulation motorisée', platform: 'Instagram', commune: 'Piana', author: '@fierdusud', date: '2025-06-22', status: 'Envoyé', priority: 'medium' },
+            { id: 9, type: 'Bivouac', platform: 'Instagram', commune: 'Corte', author: '@camping_sauvage', date: '2025-01-05', status: 'Nouveau', priority: 'high' },
+            { id: 10, type: 'Feu interdit', platform: 'Facebook', commune: 'Vizzavona', author: 'Bivouac Corse', date: '2025-01-10', status: 'Nouveau', priority: 'high' }
+        ];
+        
+        // Zones data
+        const ZONES = {
+            bavella: { lat: 41.7947, lng: 9.2456, name: 'Bavella', color: '#c62828' },
+            scandola: { lat: 42.3667, lng: 8.5500, name: 'Scandola', color: '#ff9800' },
+            coscione: { lat: 41.8333, lng: 9.0833, name: 'Coscione', color: '#2196f3' },
+            piana: { lat: 42.2408, lng: 8.6361, name: 'Calanques de Piana', color: '#4CAF50' },
+            agriates: { lat: 42.6500, lng: 9.1000, name: 'Désert des Agriates', color: '#9c27b0' }
+        };
+        
+        // Commune coordinates
+        const COMMUNES = {
+            'Zonza': { lat: 41.7500, lng: 9.1667 },
+            'Quenza': { lat: 41.8000, lng: 9.1833 },
+            'Vizzavona': { lat: 42.1167, lng: 9.1167 },
+            'Corte': { lat: 42.3084, lng: 9.1510 },
+            'Piana': { lat: 42.2408, lng: 8.6361 },
+            'Porto-Vecchio': { lat: 41.5912, lng: 9.2812 },
+            'Bonifacio': { lat: 41.3871, lng: 9.1593 },
+            'Calvi': { lat: 42.5676, lng: 8.7578 },
+            'Bastia': { lat: 42.6974, lng: 9.4499 },
+            'Ajaccio': { lat: 41.9267, lng: 8.7369 },
+            'Santo-Pietro-di-Tenda': { lat: 42.5833, lng: 9.2833 }
+        };
+        
+        // ==========================================
+        // INITIALIZATION
+        // ==========================================
+        let map = null;
+        let charts = {};
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            initNavigation();
+            initFilterPills();
+            renderAlertList();
+            renderDataList();
+            populateCommuneFilter();
+            updateStats();
+            initForm();
+            
+            // Init map when visible
+            setTimeout(initMap, 500);
+        });
+        
+        // ==========================================
+        // NAVIGATION
+        // ==========================================
+        function initNavigation() {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const view = item.dataset.view;
+                    switchView(view);
+                    
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                });
+            });
+        }
+        
+        function switchView(viewName) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(`view-${viewName}`).classList.add('active');
+            
+            // Init charts when stats view is shown
+            if (viewName === 'stats') {
+                setTimeout(initCharts, 100);
+            }
+            
+            // Refresh map when shown
+            if (viewName === 'map' && map) {
+                setTimeout(() => map.invalidateSize(), 100);
+            }
+        }
+        
+        // ==========================================
+        // ALERTS RENDERING
+        // ==========================================
+        function renderAlertList() {
+            const container = document.getElementById('alert-list');
+            const recentAlerts = alertsData.slice(0, 5);
+            
+            container.innerHTML = recentAlerts.map(alert => `
+                <div class="alert-item priority-${alert.priority}" onclick="viewAlert(${alert.id})">
+                    <div class="alert-header">
+                        <span class="alert-type">${alert.type}</span>
+                        <span class="alert-badge badge-${alert.status === 'Nouveau' ? 'new' : alert.status === 'En cours' ? 'progress' : 'done'}">${alert.status}</span>
+                    </div>
+                    <div class="alert-info">
+                        <span>📍 ${alert.commune}</span>
+                        <span>📱 ${alert.platform}</span>
+                        <span>📅 ${formatDate(alert.date)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function renderDataList(filter = 'all', communeFilter = '') {
+            const container = document.getElementById('data-list');
+            
+            let filtered = alertsData;
+            if (filter !== 'all') {
+                filtered = filtered.filter(a => a.type.toLowerCase().includes(filter));
+            }
+            if (communeFilter) {
+                filtered = filtered.filter(a => a.commune === communeFilter);
+            }
+            
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🔍</div>
+                        <h3>Aucune alerte</h3>
+                        <p>Aucune donnée ne correspond aux filtres sélectionnés</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = filtered.map(alert => `
+                <div class="alert-item priority-${alert.priority}" onclick="viewAlert(${alert.id})">
+                    <div class="alert-header">
+                        <span class="alert-type">${alert.type}</span>
+                        <span class="alert-badge badge-${alert.status === 'Nouveau' ? 'new' : alert.status === 'En cours' ? 'progress' : 'done'}">${alert.status}</span>
+                    </div>
+                    <div class="alert-info">
+                        <span>📍 ${alert.commune}</span>
+                        <span>📱 ${alert.platform}</span>
+                        <span>👤 ${alert.author}</span>
+                        <span>📅 ${formatDate(alert.date)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // ==========================================
+        // FILTERS
+        // ==========================================
+        function initFilterPills() {
+            document.querySelectorAll('.filter-pill').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+                    
+                    const filter = pill.dataset.filter;
+                    const communeFilter = document.getElementById('filterCommune').value;
+                    renderDataList(filter, communeFilter);
+                });
+            });
+        }
+        
+        function filterData() {
+            const activePill = document.querySelector('.filter-pill.active');
+            const filter = activePill ? activePill.dataset.filter : 'all';
+            const communeFilter = document.getElementById('filterCommune').value;
+            renderDataList(filter, communeFilter);
+        }
+        
+        function populateCommuneFilter() {
+            const select = document.getElementById('filterCommune');
+            const communes = [...new Set(alertsData.map(a => a.commune))].sort();
+            
+            communes.forEach(commune => {
+                const option = document.createElement('option');
+                option.value = commune;
+                option.textContent = commune;
+                select.appendChild(option);
+            });
+        }
+        
+        // ==========================================
+        // STATS
+        // ==========================================
+        function updateStats() {
+            document.getElementById('stat-total').textContent = alertsData.length;
+            document.getElementById('stat-communes').textContent = new Set(alertsData.map(a => a.commune)).size;
+            document.getElementById('stat-critical').textContent = alertsData.filter(a => a.priority === 'high').length;
+            document.getElementById('stat-resolved').textContent = alertsData.filter(a => a.status === 'Envoyé').length;
+            document.getElementById('localDataCount').textContent = `${alertsData.length} alertes`;
+        }
+        
+        // ==========================================
+        // CHARTS
+        // ==========================================
+        function initCharts() {
+            if (charts.types) return; // Already initialized
+            
+            // Types chart
+            const typesCtx = document.getElementById('chartTypes');
+            if (typesCtx) {
+                const typesCounts = {};
+                alertsData.forEach(a => {
+                    typesCtx[a.type] = (typesCounts[a.type] || 0) + 1;
+                });
+                
+                charts.types = new Chart(typesCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Circulation', 'Bivouac', 'Feu', 'Chasse'],
+                        datasets: [{
+                            data: [42, 24, 10, 3],
+                            backgroundColor: ['#ff9800', '#1976d2', '#c62828', '#9c27b0']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { font: { size: 11 }, padding: 15 }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Zones chart
+            const zonesCtx = document.getElementById('chartZones');
+            if (zonesCtx) {
+                charts.zones = new Chart(zonesCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Centre Corse', 'Alta Rocca', 'Golfe Porto', 'Bonifacio', 'Porto V.', 'Nebbiu'],
+                        datasets: [
+                            { label: 'Bivouac', data: [12, 5, 3, 0, 2, 2], backgroundColor: '#1976d2' },
+                            { label: 'Circulation', data: [16, 7, 3, 5, 1, 10], backgroundColor: '#ff9800' },
+                            { label: 'Feu', data: [5, 1, 0, 0, 1, 3], backgroundColor: '#c62828' },
+                            { label: 'Chasse', data: [1, 1, 0, 0, 0, 1], backgroundColor: '#9c27b0' }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { font: { size: 10 }, boxWidth: 12 }
+                            }
+                        },
+                        scales: {
+                            x: { ticks: { font: { size: 9 } } },
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+            
+            // Monthly chart
+            const monthlyCtx = document.getElementById('chartMonthly');
+            if (monthlyCtx) {
+                charts.monthly = new Chart(monthlyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc', 'Jan'],
+                        datasets: [{
+                            label: 'Alertes',
+                            data: [12, 25, 18, 15, 8, 5, 10],
+                            borderColor: '#1a5f2a',
+                            backgroundColor: 'rgba(26, 95, 42, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+            
+            // Platforms chart
+            const platformsCtx = document.getElementById('chartPlatforms');
+            if (platformsCtx) {
+                charts.platforms = new Chart(platformsCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['YouTube', 'Instagram', 'Facebook', 'TikTok'],
+                        datasets: [{
+                            data: [35, 28, 22, 15],
+                            backgroundColor: ['#FF0000', '#E1306C', '#1877F2', '#000000']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { font: { size: 11 }, padding: 15 }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        // ==========================================
+        // MAP
+        // ==========================================
+        function initMap() {
+            if (map) return;
+            
+            map = L.map('map', {
+                center: [42.0396, 9.0129],
+                zoom: 8,
+                zoomControl: true
+            });
+            
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '© CARTO',
+                maxZoom: 19
+            }).addTo(map);
+            
+            // Add zone circles
+            Object.entries(ZONES).forEach(([key, zone]) => {
+                L.circle([zone.lat, zone.lng], {
+                    color: zone.color,
+                    fillColor: zone.color,
+                    fillOpacity: 0.15,
+                    weight: 2,
+                    radius: 8000
+                }).addTo(map).bindPopup(`<b>${zone.name}</b>`);
+            });
+            
+            // Add alert markers
+            alertsData.forEach(alert => {
+                const coords = COMMUNES[alert.commune];
+                if (coords) {
+                    const color = alert.priority === 'high' ? '#c62828' : alert.priority === 'medium' ? '#ff9800' : '#4CAF50';
+                    
+                    const icon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div style="background: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>`,
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    });
+                    
+                    L.marker([coords.lat + (Math.random() - 0.5) * 0.05, coords.lng + (Math.random() - 0.5) * 0.05], { icon })
+                        .addTo(map)
+                        .bindPopup(`<b>${alert.type}</b><br>${alert.commune}<br>${alert.platform}`);
+                }
+            });
+        }
+        
+        function zoomToZone(zoneKey) {
+            const zone = ZONES[zoneKey];
+            if (zone && map) {
+                map.setView([zone.lat, zone.lng], 11);
+                showToast(`Zoom sur ${zone.name}`);
+            }
+        }
+        
+        // ==========================================
+        // FORM & MODAL
+        // ==========================================
+        function openNewAlertModal() {
+            document.getElementById('newAlertModal').classList.add('active');
+        }
+        
+        function closeModal() {
+            document.getElementById('newAlertModal').classList.remove('active');
+            document.getElementById('newAlertForm').reset();
+            document.getElementById('capturePreview').style.display = 'none';
+        }
+        
+        function initForm() {
+            document.getElementById('newAlertForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const newAlert = {
+                    id: Date.now(),
+                    type: document.getElementById('newType').value,
+                    platform: document.getElementById('newPlatform').value,
+                    commune: document.getElementById('newCommune').value,
+                    author: document.getElementById('newAuthor').value || 'Non identifié',
+                    link: document.getElementById('newLink').value,
+                    notes: document.getElementById('newNotes').value,
+                    date: new Date().toISOString().split('T')[0],
+                    status: 'Nouveau',
+                    priority: 'medium'
+                };
+                
+                alertsData.unshift(newAlert);
+                saveData();
+                
+                renderAlertList();
+                renderDataList();
+                updateStats();
+                
+                closeModal();
+                showToast('Alerte enregistrée !', 'success');
+            });
+        }
+        
+        function previewCapture(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const preview = document.getElementById('capturePreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
+        // ==========================================
+        // DATA MANAGEMENT
+        // ==========================================
+        function loadData() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.alerts && parsed.alerts.length > 0) {
+                        alertsData = parsed.alerts;
+                    }
+                    if (parsed.lastSync) {
+                        document.getElementById('lastSync').textContent = formatDateTime(parsed.lastSync);
+                    }
+                } catch (e) {
+                    console.error('Error loading data:', e);
+                }
+            }
+        }
+        
+        function saveData() {
+            const data = {
+                alerts: alertsData,
+                lastSync: new Date().toISOString()
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+        
+        function syncData() {
+            const btn = document.getElementById('syncBtn');
+            btn.classList.add('syncing');
+            
+            // Simulate sync
+            setTimeout(() => {
+                btn.classList.remove('syncing');
+                document.getElementById('lastSync').textContent = formatDateTime(new Date());
+                saveData();
+                showToast('Synchronisation réussie', 'success');
+            }, 1500);
+        }
+        
+        function clearLocalData() {
+            if (confirm('Supprimer toutes les données locales ?')) {
+                localStorage.removeItem(STORAGE_KEY);
+                location.reload();
+            }
+        }
+        
+        // ==========================================
+        // REPORTS
+        // ==========================================
+        function generateReport(type) {
+            showToast(`Génération du rapport ${type}...`);
+            
+            setTimeout(() => {
+                const reportData = {
+                    type: type,
+                    date: new Date().toLocaleDateString('fr-FR'),
+                    total: alertsData.length,
+                    communes: new Set(alertsData.map(a => a.commune)).size
+                };
+                
+                // Create simple text report
+                const report = `
+RAPPORT ${type.toUpperCase()} - ONF CORSE
+Date: ${reportData.date}
+================================
+Total alertes: ${reportData.total}
+Communes touchées: ${reportData.communes}
+Alertes critiques: ${alertsData.filter(a => a.priority === 'high').length}
+Alertes résolues: ${alertsData.filter(a => a.status === 'Envoyé').length}
+================================
+                `.trim();
+                
+                // Share or download
+                if (navigator.share) {
+                    navigator.share({
+                        title: `Rapport ${type} ONF Corse`,
+                        text: report
+                    });
+                } else {
+                    const blob = new Blob([report], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `rapport_${type}_${new Date().toISOString().split('T')[0]}.txt`;
+                    a.click();
+                }
+                
+                showToast('Rapport généré !', 'success');
+            }, 1000);
+        }
+        
+        // ==========================================
+        // UTILS
+        // ==========================================
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+        }
+        
+        function formatDateTime(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        }
+        
+        function showToast(message, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        function viewAlert(id) {
+            const alert = alertsData.find(a => a.id === id);
+            if (alert) {
+                showToast(`${alert.type} - ${alert.commune}`);
+            }
+        }
+        
+        // Close modal on overlay click
+        document.getElementById('newAlertModal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                closeModal();
+            }
+        });
+        
+        // ==========================================
+        // SERVICE WORKER REGISTRATION
+        // ==========================================
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('SW registered'))
+                .catch(err => console.log('SW registration failed:', err));
+        }
+    </script>
+</body>
+</html>
